@@ -31,7 +31,7 @@ jobs:
       - name: Install Selenium Dependencies
         run: |
           cd selenium-tests
-          npm ci
+          npm install
 
       - name: Run E2E Tests
         run: |

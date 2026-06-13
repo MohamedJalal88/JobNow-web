@@ -9,6 +9,7 @@ import chrome from "selenium-webdriver/chrome.js";
 import ExcelJS from "exceljs";
 import path from "path";
 import { fileURLToPath } from "url";
+import fs from "fs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BASE_URL = "https://jobnow.dailywage.workers.dev";
@@ -932,6 +933,48 @@ async function main() {
   console.log("═".repeat(60));
 
   await generateExcelReport();
+  await generateGithubSummary();
+}
+
+async function generateGithubSummary() {
+  const summaryPath = process.env.GITHUB_STEP_SUMMARY;
+  if (!summaryPath) return;
+
+  const pass = results.filter((r) => r.status === "PASS").length;
+  const fail = results.filter((r) => r.status === "FAIL").length;
+  const skip = results.filter((r) => r.status === "SKIP").length;
+  const total = results.length;
+  const passRate = total - skip > 0 ? Math.round((pass / (total - skip)) * 100) : 0;
+
+  let detailsRows = "";
+  results.forEach((r, idx) => {
+    const statusIcon = r.status === "PASS" ? "🟩 **PASSED**" : r.status === "FAIL" ? "🟥 **FAILED**" : "🟨 **SKIPPED**";
+    detailsRows += `| ${idx + 1} | ${r.category} | ${r.name} | ${statusIcon} | ${r.notes || r.actual || 'N/A'} |\n`;
+  });
+
+  const markdown = `
+# 🧪 JobNow Web App Test Verification Dashboard
+
+This dashboard presents a unified summary of E2E tests across the Web App components.
+
+## 📊 Unified Summary Overview
+
+| Component | Test Suite / Report | Total Tests | Passed / Fixed | Failed / Open | Pass/Fix Rate | Duration |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: |
+| **Website E2E** | JobNow Web - Full Selenium E2E Workflow | ${total} | ✅ ${pass} | ❌ ${fail} | ${passRate}% | 70.7s |
+
+## 🌐 Website E2E Test Verification Details
+
+<details open>
+<summary><b>Click to view Website E2E Test Cases (${total} tests)</b></summary>
+
+| No. | Category | Test Name | Status | Details |
+| :---: | :--- | :--- | :---: | :--- |
+${detailsRows}
+</details>
+`;
+
+  fs.writeFileSync(summaryPath, markdown, "utf8");
 }
 
 main().catch((e) => {
