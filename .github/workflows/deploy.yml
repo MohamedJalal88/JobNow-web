@@ -20,7 +20,7 @@ jobs:
           cache: npm
 
       - name: Install Dependencies
-        run: npm install --no-audit
+        run: npm ci
 
       - name: Build Project
         run: npm run build
