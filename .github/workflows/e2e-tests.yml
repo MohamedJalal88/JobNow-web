@@ -28,8 +28,9 @@ jobs:
       - name: Create Report Directory
         run: mkdir -p "Vulnerability Test Results"
 
-      - name: Install Selenium Dependencies
+      - name: Install Project Dependencies
         run: |
+          npm install
           cd selenium-tests
           npm install
 
