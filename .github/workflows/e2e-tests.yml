@@ -37,8 +37,12 @@ jobs:
         run: |
           node selenium-tests/run-tests.mjs
 
-      - name: Upload Excel Test Report
+      - name: Run Security Audit Report
+        run: |
+          node generate-excel.js
+
+      - name: Upload Excel Test & Security Reports
         uses: actions/upload-artifact@v4
         with:
-          name: E2E-Test-Report
-          path: "Vulnerability Test Results/E2E_Test_Report.xlsx"
+          name: E2E-and-Security-Test-Reports
+          path: "Vulnerability Test Results/"
