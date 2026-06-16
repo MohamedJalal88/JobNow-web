@@ -28,7 +28,7 @@ function ForgotPassword() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isMockReset, setIsMockReset] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
 
   // Errors
@@ -39,6 +39,7 @@ function ForgotPassword() {
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (cooldown > 0) return;
     setEmailError("");
 
     const cleanEmail = email.trim();
@@ -49,48 +50,28 @@ function ForgotPassword() {
 
     setIsSubmitting(true);
     try {
-      // 1. Check if email exists in profiles table case-insensitively
-      const { data: profile, error: profileErr } = await supabase
-        .from("profiles")
-        .select("id, role")
-        .ilike("email", cleanEmail)
-        .maybeSingle();
-
-      if (profileErr) throw profileErr;
-
-      if (!profile) {
-        setEmailError("This email address is not registered in our system. Please check the spelling or sign up first.");
-        setIsSubmitting(false);
-        return;
-      }
-
-      // If the profile role is different from the current search parameter role, update the URL
-      if (profile.role !== role) {
-        navigate({ search: { role: profile.role as "worker" | "contractor" }, replace: true });
-      }
-
-      // 2. Call Supabase to send recovery OTP
+      // Call Supabase to send recovery OTP silently
       const { error: resetErr } = await supabase.auth.resetPasswordForEmail(cleanEmail);
 
       if (resetErr) {
         console.warn("Supabase resetPasswordForEmail error:", resetErr.message);
-        toast.info(`Supabase Auth Notice: ${resetErr.message}. Fallback enabled (Use test OTP: 123456).`, {
-          duration: 10000,
-        });
-        setIsMockReset(true);
-      } else {
-        toast.success("Verification OTP sent! Check your inbox.");
       }
 
+      toast.success("If this email is registered, a reset link/OTP has been sent.");
       setStep("otp");
+      setCooldown(60);
+      const timer = setInterval(() => {
+        setCooldown((c) => {
+          if (c <= 1) {
+            clearInterval(timer);
+            return 0;
+          }
+          return c - 1;
+        });
+      }, 1000);
     } catch (err) {
       console.error(err);
-      const errMsg = err instanceof Error 
-        ? err.message 
-        : (err && typeof err === 'object' && 'message' in err)
-          ? String((err as any).message)
-          : "Failed to request password reset. Try again.";
-      toast.error(errMsg);
+      toast.error("Failed to request password reset. Try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -107,14 +88,6 @@ function ForgotPassword() {
 
     setIsSubmitting(true);
     try {
-      if (otp === "123456" || isMockReset) {
-        setIsMockReset(true);
-        toast.success("OTP Verified (Simulation)!");
-        setStep("password");
-        setIsSubmitting(false);
-        return;
-      }
-
       const { error } = await supabase.auth.verifyOtp({
         email: email.trim(),
         token: otp.trim(),
@@ -127,8 +100,8 @@ function ForgotPassword() {
       setStep("password");
     } catch (err) {
       console.error("Verification error:", err);
-      toast.error(err instanceof Error ? err.message : "Invalid verification code. Try again.");
-      setOtpError("Invalid verification code. You can use 123456 for testing.");
+      toast.error("Invalid verification code. Please try again.");
+      setOtpError("Invalid verification code.");
     } finally {
       setIsSubmitting(false);
     }
@@ -139,8 +112,8 @@ function ForgotPassword() {
     setPasswordError("");
     setConfirmPasswordError("");
 
-    if (password.length < 6) {
-      setPasswordError("Password must be at least 6 characters.");
+    if (password.length < 8 || !/(?=.*[0-9!@#$%^&*])/.test(password)) {
+      setPasswordError("Password must be at least 8 characters and contain a number or special character.");
       return;
     }
 
@@ -151,21 +124,14 @@ function ForgotPassword() {
 
     setIsSubmitting(true);
     try {
-      if (isMockReset) {
-        // Simulation mode: we just simulate the reset and show success.
-        await new Promise((resolve) => setTimeout(resolve, 800));
-        toast.success("Password reset successfully (Simulation)!");
-        setStep("success");
-      } else {
-        const { error } = await supabase.auth.updateUser({
-          password: password,
-        });
+      const { error } = await supabase.auth.updateUser({
+        password: password,
+      });
 
-        if (error) throw error;
+      if (error) throw error;
 
-        toast.success("Password updated successfully!");
-        setStep("success");
-      }
+      toast.success("Password updated successfully!");
+      setStep("success");
     } catch (err) {
       console.error(err);
       toast.error(err instanceof Error ? err.message : "Failed to update password. Try again.");
@@ -214,13 +180,15 @@ function ForgotPassword() {
           <Button
             id="forgot-email-submit"
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || cooldown > 0}
             className="w-full h-12 rounded-full bg-gradient-primary text-primary-foreground font-semibold shadow-glow"
           >
             {isSubmitting ? (
               <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Checking account…
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processing…
               </>
+            ) : cooldown > 0 ? (
+              `Wait ${cooldown}s`
             ) : (
               "Send reset OTP"
             )}

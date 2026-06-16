@@ -68,15 +68,12 @@ function Declined() {
       // Create a notification for the worker about being declined with reason
       // If notifications table exists, try to insert, else swallow error so it behaves gracefully
       try {
-        await supabase
-          .from("notifications")
-          .insert({
-            user_id: app.worker_id,
-            title: "Application Status Updated",
-            body: `Your application for "${app.job?.title}" was declined. Reason: ${reason}. ${note ? `Note: ${note}` : ""}`,
-            type: "job",
-            unread: true,
-          });
+        await supabase.rpc("insert_notification", {
+          p_user_id: app.worker_id,
+          p_title: "Application Status Updated",
+          p_body: `Your application for "${app.job?.title}" was declined. Reason: ${reason}. ${note ? `Note: ${note}` : ""}`,
+          p_type: "job",
+        });
       } catch (notifErr) {
         console.warn("Notifications table might not exist yet, skipping in-app notification:", notifErr);
       }

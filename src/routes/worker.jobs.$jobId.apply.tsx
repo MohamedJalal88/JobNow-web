@@ -90,12 +90,11 @@ function ApplyForJob() {
       // Create notification for the contractor
       try {
         if (job.contractorId) {
-          await supabase.from("notifications").insert({
-            user_id: job.contractorId,
-            title: "New Job Application",
-            body: `${user.name || "A worker"} has claimed a slot for "${job.title}".`,
-            type: "job",
-            unread: true,
+          await supabase.rpc("insert_notification", {
+            p_user_id: job.contractorId,
+            p_title: "New Job Application",
+            p_body: `${user.name || "A worker"} has claimed a slot for "${job.title}".`,
+            p_type: "job",
           });
         }
       } catch (notifErr) {

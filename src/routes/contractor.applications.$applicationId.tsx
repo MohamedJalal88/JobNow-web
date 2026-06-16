@@ -52,17 +52,14 @@ function ApplicationDetails() {
 
       // Create notification for the worker
       try {
-        await supabase
-          .from("notifications")
-          .insert({
-            user_id: app.worker_id,
-            title: nextStatus === "hired" ? "Congratulations! You are hired!" : "Application Status",
-            body: nextStatus === "hired" 
-              ? `You have been hired for the job "${app.job?.title}". Pack your tools!` 
-              : `Your application for the job "${app.job?.title}" was declined.`,
-            type: "job",
-            unread: true,
-          });
+        await supabase.rpc("insert_notification", {
+          p_user_id: app.worker_id,
+          p_title: nextStatus === "hired" ? "Congratulations! You are hired!" : "Application Status",
+          p_body: nextStatus === "hired" 
+            ? `You have been hired for the job "${app.job?.title}". Pack your tools!` 
+            : `Your application for the job "${app.job?.title}" was declined.`,
+          p_type: "job",
+        });
       } catch (notifErr) {
         console.warn("Could not insert notification:", notifErr);
       }

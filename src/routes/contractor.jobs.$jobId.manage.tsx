@@ -11,6 +11,7 @@ import { SKILLS } from "@/lib/skills-config";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
+import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/contractor/jobs/$jobId/manage")({
   head: () => ({ meta: [{ title: "Manage Job — JobNow" }] }),
@@ -22,6 +23,7 @@ function ManageJob() {
   const [job, setJob] = useState<any>(null);
   const [applications, setApplications] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuth();
 
   useEffect(() => {
     async function loadJobData() {
@@ -33,6 +35,13 @@ function ManageJob() {
           .single();
 
         if (jobErr) throw jobErr;
+
+        if (dbJob.contractor_id !== user?.id) {
+          toast.error("Unauthorized: You do not have permission to manage this job");
+          window.location.href = "/contractor/active";
+          return;
+        }
+
         setJob(dbJob);
 
         const { data: dbApps, error: appsErr } = await supabase
@@ -50,7 +59,7 @@ function ManageJob() {
     }
 
     loadJobData();
-  }, [jobId]);
+  }, [jobId, user]);
 
   if (isLoading) {
     return (

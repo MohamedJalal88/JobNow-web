@@ -55,7 +55,9 @@ const makeRegisterSchema = (isCompleteMode: boolean, signUpStep: "phone" | "otp"
           .optional()
           .or(z.literal("")),
         email: z.string().email("Invalid email address").optional().or(z.literal("")),
-        password: z.string().min(6, "Password must be at least 6 characters"),
+        password: z.string()
+          .min(8, "Password must be at least 8 characters")
+          .regex(/(?=.*[0-9!@#$%^&*])/, "Password must contain a number or special character"),
         confirmPassword: z.string(),
       })
       .refine((d) => d.password === d.confirmPassword, {
@@ -108,12 +110,11 @@ function Register() {
   const [completeProfileConfirmPwd, setCompleteProfileConfirmPwd] = useState("");
   const [pwdError, setPwdError] = useState("");
   const [confirmPwdError, setConfirmPwdError] = useState("");
+  const [cooldown, setCooldown] = useState(0);
   const hasInitializedStep = useRef(false);
 
   useEffect(() => {
-    if (role) {
-      localStorage.setItem("signup_role", role);
-    }
+    // TC-AUTH-07 removed localStorage role caching
   }, [role]);
 
   useEffect(() => {
@@ -131,8 +132,8 @@ function Register() {
     setPwdError("");
     setConfirmPwdError("");
 
-    if (completeProfilePwd.length < 6) {
-      setPwdError("Password must be at least 6 characters");
+    if (completeProfilePwd.length < 8 || !/(?=.*[0-9!@#$%^&*])/.test(completeProfilePwd)) {
+      setPwdError("Password must be at least 8 characters and contain a number or special character");
       return;
     }
     if (completeProfilePwd !== completeProfileConfirmPwd) {
@@ -157,6 +158,7 @@ function Register() {
   };
 
   const handleSendOtp = async () => {
+    if (cooldown > 0) return;
     const isValid = await trigger(tab);
     if (!isValid) return;
 
@@ -190,6 +192,16 @@ function Register() {
         toast.success("Verification OTP sent! Please check your email inbox.");
       }
       setSignUpStep("otp");
+      setCooldown(60);
+      const timer = setInterval(() => {
+        setCooldown((c) => {
+          if (c <= 1) {
+            clearInterval(timer);
+            return 0;
+          }
+          return c - 1;
+        });
+      }, 1000);
     } catch (err) {
       console.error("OTP send failed:", err);
       const errMsg = err instanceof Error ? err.message : String(err);
@@ -250,7 +262,7 @@ function Register() {
       if (completeProfile && !user) {
         nav({ to: "/register", search: { role, completeProfile: false }, replace: true });
       } else if (!completeProfile && user && isProfileIncomplete(user)) {
-        const signupRole = localStorage.getItem("signup_role") || role;
+        const signupRole = user.user_metadata?.role || role || "worker";
         nav({ to: "/register", search: { role: signupRole as any, completeProfile: true }, replace: true });
       } else if (user && !isProfileIncomplete(user)) {
         nav({ to: user.role === "contractor" ? "/contractor" : "/worker", replace: true });
@@ -261,8 +273,6 @@ function Register() {
   async function handleGoogleLogin() {
     setIsSubmitting(true);
     try {
-      localStorage.setItem("oauth_role", role);
-      localStorage.setItem("oauth_source", "register");
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
@@ -892,13 +902,15 @@ function Register() {
                 <Button
                   type="button"
                   onClick={handleSendOtp}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || cooldown > 0}
                   className="w-full h-12 rounded-full bg-gradient-primary text-primary-foreground font-semibold shadow-glow mt-2"
                 >
                   {isSubmitting ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Sending OTP…
                     </>
+                  ) : cooldown > 0 ? (
+                    `Wait ${cooldown}s`
                   ) : (
                     "Send Verification OTP"
                   )}

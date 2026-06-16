@@ -27,7 +27,7 @@ import { createClient } from "@supabase/supabase-js";
 
 // Server function to create a Razorpay Order ID securely
 export const createRazorpayOrder = createServerFn({ method: "POST" })
-  .handler(async ({ data }: { data: { jobId: string; accessToken: string } }) => {
+  .handler(async ({ data }: { data: { jobId?: string; amount?: number; accessToken: string } }) => {
     try {
       const keyId = getEnvVariable("VITE_RAZORPAY_KEY_ID");
       const keySecret = getEnvVariable("RAZORPAY_KEY_SECRET");
@@ -48,18 +48,28 @@ export const createRazorpayOrder = createServerFn({ method: "POST" })
         throw new Error("Unauthorized");
       }
 
-      // Securely fetch job details to determine the amount
-      const { data: job, error: jobError } = await supabase
-        .from('jobs')
-        .select('pay_per_day, duration_days, workers_needed')
-        .eq('id', data.jobId)
-        .single();
+      let finalAmount = 0;
+      let receiptId = `receipt_${Date.now()}`;
+
+      if (data.jobId) {
+        // Securely fetch job details to determine the amount
+        const { data: job, error: jobError } = await supabase
+          .from('jobs')
+          .select('pay_per_day, duration_days, workers_needed')
+          .eq('id', data.jobId)
+          .single();
+          
+        if (jobError || !job) {
+           throw new Error("Job not found or inaccessible.");
+        }
         
-      if (jobError || !job) {
-         throw new Error("Job not found or inaccessible.");
+        finalAmount = job.pay_per_day * job.duration_days * job.workers_needed;
+        receiptId = `receipt_job_${data.jobId}`;
+      } else if (data.amount) {
+        finalAmount = data.amount;
+      } else {
+        throw new Error("Missing jobId or amount");
       }
-      
-      const amount = job.pay_per_day * job.duration_days * job.workers_needed;
 
       const auth = Buffer.from(`${keyId}:${keySecret}`).toString("base64");
 
@@ -70,9 +80,9 @@ export const createRazorpayOrder = createServerFn({ method: "POST" })
           Authorization: `Basic ${auth}`,
         },
         body: JSON.stringify({
-          amount: Math.round(amount * 100), // convert to Paisa securely
+          amount: Math.round(finalAmount * 100), // convert to Paisa securely
           currency: "INR",
-          receipt: `receipt_job_${data.jobId}`,
+          receipt: receiptId,
         }),
       });
 
@@ -128,7 +138,10 @@ export const verifyRazorpayPayment = createServerFn({ method: "POST" })
         .update(text)
         .digest("hex");
 
-      const isValid = generatedSignature === data.razorpay_signature;
+      const isValid = crypto.timingSafeEqual(
+        Buffer.from(generatedSignature),
+        Buffer.from(data.razorpay_signature)
+      );
       return { success: isValid };
     } catch (error) {
       console.error("Error in verifyRazorpayPayment server handler:", error);

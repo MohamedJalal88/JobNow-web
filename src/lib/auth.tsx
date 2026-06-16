@@ -221,24 +221,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 password: payload.password,
               });
               if (fallbackResult.error) {
-                if (fallbackResult.error.message.includes("Invalid login credentials") || fallbackResult.error.status === 400) {
-                  throw new Error("INCORRECT_PASSWORD");
-                }
-                throw fallbackResult.error;
+                throw new Error("Invalid credentials");
               }
               result = fallbackResult;
             } else {
-              // No fallback profile. Let's check if the email exists in profiles.
-              const { data: checkProfile, error: checkErr } = await supabase
-                .from("profiles")
-                .select("id")
-                .eq("email", identifier)
-                .maybeSingle();
-
-              if (!checkErr && checkProfile) {
-                throw new Error("INCORRECT_PASSWORD");
-              }
-              throw result.error;
+              throw new Error("Invalid credentials");
             }
           }
         } else {
@@ -271,20 +258,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 password: payload.password,
               });
               if (fallbackResult.error) {
-                if (fallbackResult.error.message.includes("Invalid login credentials") || fallbackResult.error.status === 400) {
-                  throw new Error("INCORRECT_PASSWORD");
-                }
-                throw fallbackResult.error;
+                throw new Error("Invalid credentials");
               }
               result = fallbackResult;
-            } else if (profile) {
-              // Account exists in profiles but has no mock email (real phone user), so throw the direct login error (e.g. wrong password)
-              if (result.error.message.includes("Invalid login credentials") || result.error.status === 400) {
-                throw new Error("INCORRECT_PASSWORD");
-              }
-              throw result.error;
             } else {
-              throw new Error("No account found with this phone number. Please register first.");
+              throw new Error("Invalid credentials");
             }
           }
         }
@@ -362,7 +340,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             name: payload.name,
             phone: formattedPhone,
             email: email,
-            role: payload.role,
             latitude: payload.latitude,
             longitude: payload.longitude,
             location: payload.location || "",

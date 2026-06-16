@@ -265,15 +265,12 @@ function ContractorMessages() {
 
         // Insert notification for the recipient
         try {
-          await supabase
-            .from("notifications")
-            .insert({
-              user_id: activeContactId,
-              title: `New message from ${user.name || "User"}`,
-              body: messageText.length > 60 ? `${messageText.slice(0, 60)}...` : messageText,
-              type: "chat",
-              unread: true,
-            });
+          await supabase.rpc("insert_notification", {
+            p_user_id: activeContactId,
+            p_title: `New message from ${user.name || "User"}`,
+            p_body: messageText.length > 60 ? `${messageText.slice(0, 60)}...` : messageText,
+            p_type: "chat",
+          });
         } catch (notifErr) {
           console.warn("Could not insert message notification:", notifErr);
         }

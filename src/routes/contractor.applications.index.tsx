@@ -65,15 +65,12 @@ function Applications() {
       // Create notification for the worker
       if (app) {
         try {
-          await supabase
-            .from("notifications")
-            .insert({
-              user_id: app.worker_id,
-              title: "Congratulations! You are hired!",
-              body: `You have been hired for the job "${app.job?.title}". Pack your tools!`,
-              type: "job",
-              unread: true,
-            });
+          await supabase.rpc("insert_notification", {
+            p_user_id: app.worker_id,
+            p_title: "Congratulations! You are hired!",
+            p_body: `You have been hired for the job "${app.job?.title}". Pack your tools!`,
+            p_type: "job",
+          });
         } catch (notifErr) {
           console.warn("Could not insert notification:", notifErr);
         }
