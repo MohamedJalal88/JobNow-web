@@ -1,0 +1,35 @@
+name: JobNow All Testcases
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  all-testcases-report:
+    name: '📋 JobNow All Test Cases Report'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Generate Summary Dashboard
+        run: node generate-test-summary.cjs
+
+      - name: Upload Excel Test Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: JobNow-All-Testcases-Report
+          path: "Vulnerability Test Results/JobNow_All_Testcases.xlsx"
