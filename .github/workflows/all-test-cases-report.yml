@@ -1,0 +1,27 @@
+name: JobNow All Test Cases Report
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  upload-test-cases-report:
+    name: '📄 Upload Test Cases Report'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Upload All Testcases Excel Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: JobNow-All-Testcases-Report
+          path: "Vulnerability Test Results/JobNow_All_Testcases.xlsx"
