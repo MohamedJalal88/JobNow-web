@@ -1,45 +1,44 @@
 import { createServerFn } from "@tanstack/react-start";
 import crypto from "crypto";
-import { getEvent } from "vinxi/http";
+import { getWebRequest } from "vinxi/http";
+import { createClient } from "@supabase/supabase-js";
 
-// Safely retrieve environment variables across different runtimes (Node, Deno, Cloudflare)
+// Safely retrieve environment variables across different runtimes (Node, Cloudflare Workers)
 function getEnvVariable(name: string): string {
-  // 1. Try Node process.env
+  // 1. Try Node process.env (local dev)
   if (typeof process !== "undefined" && process.env && process.env[name]) {
     return process.env[name] as string;
   }
-  
-  // 2. Try Cloudflare Workers event context (Vinxi/Nitro)
+
+  // 2. Try Cloudflare Workers — the env bindings are on the request context
   try {
-    const event = getEvent();
-    const envVal = event?.context?.cloudflare?.env?.[name];
-    if (envVal) return envVal as string;
+    const req = getWebRequest();
+    const cfEnv = (req as any)?.__cf_env;
+    if (cfEnv && cfEnv[name]) return cfEnv[name] as string;
   } catch (e) {}
 
-  // 3. Try Deno
+  // 3. Try globalThis (Cloudflare global bindings injected at module scope)
   try {
-    const denoEnv = (globalThis as any).Deno?.env;
-    if (denoEnv) {
-      return denoEnv.get(name) || "";
-    }
+    const g = globalThis as any;
+    if (g[name]) return g[name] as string;
   } catch (e) {}
 
-  // 4. Try import.meta.env
+  // 4. Try import.meta.env (Vite build-time injection for VITE_ prefixed vars)
   try {
     const metaEnv = (import.meta as any).env;
     if (metaEnv && metaEnv[name]) {
       return metaEnv[name] as string;
     }
   } catch (e) {}
-  
+
   return "";
 }
 
-import { createClient } from "@supabase/supabase-js";
-
 // Server function to create a Razorpay Order ID securely
 export const createRazorpayOrder = createServerFn({ method: "POST" })
-  .handler(async ({ data }: { data: { jobId?: string; amount?: number; accessToken: string } }) => {
+  // @ts-ignore - TanStack Start server fn handler type
+  .handler(async (ctx: any) => {
+    const data = ctx?.data as { jobId?: string; amount?: number; accessToken: string };
     try {
       const keyId = getEnvVariable("VITE_RAZORPAY_KEY_ID");
       const keySecret = getEnvVariable("RAZORPAY_KEY_SECRET");
@@ -119,12 +118,14 @@ export const createRazorpayOrder = createServerFn({ method: "POST" })
 
 // Server function to securely verify payment signatures before completing transactions
 export const verifyRazorpayPayment = createServerFn({ method: "POST" })
-  .handler(async ({ data }: { data: {
+  // @ts-ignore - TanStack Start server fn handler type
+  .handler(async (ctx: any) => {
+    const data = ctx?.data as {
       razorpay_order_id: string;
       razorpay_payment_id: string;
       razorpay_signature: string;
       accessToken: string;
-    } }) => {
+    };
     try {
       const keySecret = getEnvVariable("RAZORPAY_KEY_SECRET");
       const supabaseUrl = getEnvVariable("VITE_SUPABASE_URL");
