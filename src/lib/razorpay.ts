@@ -4,23 +4,27 @@ import { createClient } from "@supabase/supabase-js";
 
 // Safely retrieve environment variables across different runtimes (Node, Cloudflare Workers)
 function getEnvVariable(name: string): string {
-  // 1. Try Node process.env (local dev)
-  if (typeof process !== "undefined" && process.env && process.env[name]) {
-    return process.env[name] as string;
+  // 1. Try import.meta.env first (Vite bakes VITE_* vars into the server bundle at build time)
+  try {
+    const metaEnv = (import.meta as any).env;
+    if (metaEnv) {
+      // Try exact name
+      if (metaEnv[name]) return metaEnv[name] as string;
+      // Try with VITE_ prefix (for secrets like RAZORPAY_KEY_SECRET -> VITE_RAZORPAY_KEY_SECRET)
+      if (metaEnv[`VITE_${name}`]) return metaEnv[`VITE_${name}`] as string;
+    }
+  } catch (e) {}
+
+  // 2. Try Node process.env (local dev / CI build time)
+  if (typeof process !== "undefined" && process.env) {
+    if (process.env[name]) return process.env[name] as string;
+    if (process.env[`VITE_${name}`]) return process.env[`VITE_${name}`] as string;
   }
 
-  // 2. Try globalThis — Cloudflare Workers injects bindings at module scope
+  // 3. Try globalThis — Cloudflare Workers injects bindings at module scope
   try {
     const g = globalThis as any;
     if (g[name] && typeof g[name] === "string") return g[name] as string;
-  } catch (e) {}
-
-  // 3. Try import.meta.env (Vite build-time injection for VITE_ prefixed vars)
-  try {
-    const metaEnv = (import.meta as any).env;
-    if (metaEnv && metaEnv[name]) {
-      return metaEnv[name] as string;
-    }
   } catch (e) {}
 
   return "";
