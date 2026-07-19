@@ -391,17 +391,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (updates.longitude !== undefined) dbUpdates.longitude = updates.longitude;
         if (updates.resumeUrl !== undefined) dbUpdates.resume_url = updates.resumeUrl;
 
-        const { error } = await supabase
-          .from("profiles")
-          .upsert(dbUpdates);
-
-        if (error) throw error;
-
-        // Sync phone, email, and role metadata to Supabase Auth (auth.users) so they stay in sync
+        // 1. Sync email and role metadata to Supabase Auth (auth.users) first, so JWT/DB policies are in sync
         const authUpdates: Record<string, any> = {};
-        if (updates.phone !== undefined && updates.phone.trim() !== "" && updates.phone !== state.user.phone) {
-          authUpdates.phone = updates.phone;
-        }
         if (updates.email !== undefined && updates.email.trim() !== "" && updates.email !== state.user.email) {
           // Do not push fake mock emails (e.g. @jobnow.com) back to Supabase Auth
           if (!updates.email.endsWith("@jobnow.com")) {
@@ -418,6 +409,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.warn("Failed to sync credentials to Supabase Auth auth.users:", authError.message);
           }
         }
+
+        // 2. Then update public.profiles table in the database
+        const { error } = await supabase
+          .from("profiles")
+          .upsert(dbUpdates);
+
+        if (error) throw error;
 
         setState((prev) => {
           if (!prev.user) return prev;

@@ -161,6 +161,7 @@ function Register() {
     try {
       const { error } = await supabase.auth.updateUser({
         password: completeProfilePwd,
+        data: { role: role }
       });
       if (error) throw error;
 
@@ -466,9 +467,10 @@ function Register() {
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session) {
-          // User is authenticated via SMS OTP. Set their password.
+          // User is authenticated via SMS OTP. Set their password and metadata role.
           const { error: pwdErr } = await supabase.auth.updateUser({
             password: data.password || "",
+            data: { role: role }
           });
           if (pwdErr) throw pwdErr;
           
