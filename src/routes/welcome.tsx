@@ -54,6 +54,16 @@ function Landing() {
   const [isMobileApp, setIsMobileApp] = useState(false);
 
   useEffect(() => {
+    if (typeof window !== "undefined" && window.location.search.includes("reset=true")) {
+      localStorage.clear();
+      sessionStorage.clear();
+      supabase.auth.signOut().then(() => {
+        window.location.href = "/welcome";
+      });
+    }
+  }, []);
+
+  useEffect(() => {
     const checkIsMobileApp = () => {
       const isNative =
         typeof window !== "undefined" &&
