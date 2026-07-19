@@ -1,25 +1,37 @@
 import { createServerFn } from "@tanstack/react-start";
 import crypto from "crypto";
+import { getEvent } from "vinxi/http";
 
 // Safely retrieve environment variables across different runtimes (Node, Deno, Cloudflare)
 function getEnvVariable(name: string): string {
+  // 1. Try Node process.env
   if (typeof process !== "undefined" && process.env && process.env[name]) {
     return process.env[name] as string;
   }
-  // Try Deno
+  
+  // 2. Try Cloudflare Workers event context (Vinxi/Nitro)
+  try {
+    const event = getEvent();
+    const envVal = event?.context?.cloudflare?.env?.[name];
+    if (envVal) return envVal as string;
+  } catch (e) {}
+
+  // 3. Try Deno
   try {
     const denoEnv = (globalThis as any).Deno?.env;
     if (denoEnv) {
       return denoEnv.get(name) || "";
     }
   } catch (e) {}
-  // Try import.meta.env
+
+  // 4. Try import.meta.env
   try {
     const metaEnv = (import.meta as any).env;
     if (metaEnv && metaEnv[name]) {
       return metaEnv[name] as string;
     }
   } catch (e) {}
+  
   return "";
 }
 
