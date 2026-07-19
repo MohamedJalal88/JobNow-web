@@ -50,13 +50,7 @@ export const Route = createFileRoute("/contractor")({
       throw redirect({ to: "/login", search: { role: "contractor" }, replace: true });
     }
 
-    // Session exists — fetch user metadata role (fast local check)
-    const metadataRole = session.user.user_metadata?.role;
-    if (metadataRole && metadataRole !== "contractor") {
-      throw redirect({ to: "/worker", replace: true });
-    }
-
-    // Session exists — fetch the role from the profiles table
+    // Fetch the role from the profiles table (source of truth)
     const { data: profile, error } = await supabase
       .from("profiles")
       .select("role")
@@ -67,8 +61,9 @@ export const Route = createFileRoute("/contractor")({
       if (profile.role !== "contractor") {
         throw redirect({ to: "/worker", replace: true });
       }
-    } else if (error) {
-      console.warn("Profile query failed in contractor beforeLoad, using metadata role fallback:", error);
+    } else {
+      // Fallback to metadata role if database query fails
+      const metadataRole = session.user.user_metadata?.role;
       if (metadataRole && metadataRole !== "contractor") {
         throw redirect({ to: "/worker", replace: true });
       }
