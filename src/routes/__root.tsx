@@ -91,6 +91,14 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  if (typeof window !== "undefined" && window.location.search.includes("reset=true")) {
+    localStorage.clear();
+    sessionStorage.clear();
+    window.location.href = "/welcome";
+    return null;
+  }
+
   return (
     <LanguageProvider>
       <AuthProvider>
