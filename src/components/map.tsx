@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
+let leafletPromise: Promise<any> | null = null;
+
 // Dynamically loads Leaflet CSS & JS from CDN.
 export function loadLeaflet(): Promise<any> {
   if (typeof window === "undefined") {
@@ -9,21 +11,14 @@ export function loadLeaflet(): Promise<any> {
   if ((window as any).L) {
     return Promise.resolve((window as any).L);
   }
-
-  // Check if loader is already active
-  const existingScript = document.querySelector('script[src*="leaflet.js"]');
-  if (existingScript) {
-    return new Promise((resolve) => {
-      const interval = setInterval(() => {
-        if ((window as any).L) {
-          clearInterval(interval);
-          resolve((window as any).L);
-        }
-      }, 100);
-    });
+  if (leafletPromise) {
+    return leafletPromise;
   }
 
-  return new Promise((resolve, reject) => {
+  // Remove any stale/failed Leaflet tags from the DOM head to avoid interference
+  document.querySelectorAll('link[href*="leaflet"], script[src*="leaflet"]').forEach((el) => el.remove());
+
+  leafletPromise = new Promise((resolve, reject) => {
     // 1. Inject Leaflet CSS
     const link = document.createElement("link");
     link.rel = "stylesheet";
@@ -52,10 +47,13 @@ export function loadLeaflet(): Promise<any> {
     };
     script.onerror = (err) => {
       console.error("Failed to load Leaflet script:", err);
+      leafletPromise = null; // Clear promise cache to allow retries
       reject(err);
     };
     document.head.appendChild(script);
   });
+
+  return leafletPromise;
 }
 
 interface MapPickerProps {
