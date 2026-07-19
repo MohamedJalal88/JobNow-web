@@ -31,7 +31,7 @@ export function RazorpayModal({ isOpen, onClose, onSuccess, amount, jobTitle }: 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Please log in first");
 
-      const orderData = await createRazorpayOrder({
+      const orderData = await (createRazorpayOrder as any)({
         data: { amount, accessToken: session.access_token }
       });
 
@@ -44,7 +44,7 @@ export function RazorpayModal({ isOpen, onClose, onSuccess, amount, jobTitle }: 
         order_id: orderData.orderId,
         handler: async function (response: any) {
           try {
-            const verification = await verifyRazorpayPayment({
+            const verification = await (verifyRazorpayPayment as any)({
               data: {
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,

@@ -1,6 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 import crypto from "crypto";
-import { getWebRequest } from "vinxi/http";
 import { createClient } from "@supabase/supabase-js";
 
 // Safely retrieve environment variables across different runtimes (Node, Cloudflare Workers)
@@ -10,20 +9,13 @@ function getEnvVariable(name: string): string {
     return process.env[name] as string;
   }
 
-  // 2. Try Cloudflare Workers — the env bindings are on the request context
-  try {
-    const req = getWebRequest();
-    const cfEnv = (req as any)?.__cf_env;
-    if (cfEnv && cfEnv[name]) return cfEnv[name] as string;
-  } catch (e) {}
-
-  // 3. Try globalThis (Cloudflare global bindings injected at module scope)
+  // 2. Try globalThis — Cloudflare Workers injects bindings at module scope
   try {
     const g = globalThis as any;
-    if (g[name]) return g[name] as string;
+    if (g[name] && typeof g[name] === "string") return g[name] as string;
   } catch (e) {}
 
-  // 4. Try import.meta.env (Vite build-time injection for VITE_ prefixed vars)
+  // 3. Try import.meta.env (Vite build-time injection for VITE_ prefixed vars)
   try {
     const metaEnv = (import.meta as any).env;
     if (metaEnv && metaEnv[name]) {
