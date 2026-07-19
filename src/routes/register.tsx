@@ -114,8 +114,24 @@ function Register() {
   const hasInitializedStep = useRef(false);
 
   useEffect(() => {
-    // TC-AUTH-07 removed localStorage role caching
+    if (role) {
+      localStorage.setItem("signup_role", role);
+    }
   }, [role]);
+
+  // Prevent role switching on refresh/reload/back by enforcing the cached role
+  useEffect(() => {
+    if (completeProfile) {
+      const savedRole = localStorage.getItem("signup_role");
+      if (savedRole && savedRole !== role && (savedRole === "worker" || savedRole === "contractor")) {
+        nav({
+          to: "/register",
+          search: { role: savedRole as any, completeProfile: true },
+          replace: true,
+        });
+      }
+    }
+  }, [role, completeProfile, nav]);
 
   useEffect(() => {
     if (isCompleteMode && user && !hasInitializedStep.current) {
@@ -262,7 +278,7 @@ function Register() {
       if (completeProfile && !user) {
         nav({ to: "/register", search: { role, completeProfile: false }, replace: true });
       } else if (!completeProfile && user && isProfileIncomplete(user)) {
-        const signupRole = user.user_metadata?.role || role || "worker";
+        const signupRole = localStorage.getItem("signup_role") || user.user_metadata?.role || role || "worker";
         nav({ to: "/register", search: { role: signupRole as any, completeProfile: true }, replace: true });
       } else if (user && !isProfileIncomplete(user)) {
         nav({ to: user.role === "contractor" ? "/contractor" : "/worker", replace: true });
