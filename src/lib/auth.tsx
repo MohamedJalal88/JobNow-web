@@ -397,7 +397,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (error) throw error;
 
-        // Sync phone and email to Supabase Auth (auth.users) so they can be used as login credentials
+        // Sync phone, email, and role metadata to Supabase Auth (auth.users) so they stay in sync
         const authUpdates: Record<string, any> = {};
         if (updates.phone !== undefined && updates.phone.trim() !== "" && updates.phone !== state.user.phone) {
           authUpdates.phone = updates.phone;
@@ -407,6 +407,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (!updates.email.endsWith("@jobnow.com")) {
             authUpdates.email = updates.email;
           }
+        }
+        if (updates.role !== undefined && updates.role !== state.user.role) {
+          authUpdates.data = { role: updates.role };
         }
 
         if (Object.keys(authUpdates).length > 0) {
