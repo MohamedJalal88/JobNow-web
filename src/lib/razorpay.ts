@@ -4,28 +4,41 @@ import { createClient } from "@supabase/supabase-js";
 
 // Safely retrieve environment variables across different runtimes (Node, Cloudflare Workers)
 function getEnvVariable(name: string): string {
-  // 1. Try import.meta.env first (Vite bakes VITE_* vars into the server bundle at build time)
-  try {
-    const metaEnv = (import.meta as any).env;
-    if (metaEnv) {
-      // Try exact name
-      if (metaEnv[name]) return metaEnv[name] as string;
-      // Try with VITE_ prefix (for secrets like RAZORPAY_KEY_SECRET -> VITE_RAZORPAY_KEY_SECRET)
-      if (metaEnv[`VITE_${name}`]) return metaEnv[`VITE_${name}`] as string;
-    }
-  } catch (e) {}
-
-  // 2. Try Node process.env (local dev / CI build time)
-  if (typeof process !== "undefined" && process.env) {
-    if (process.env[name]) return process.env[name] as string;
-    if (process.env[`VITE_${name}`]) return process.env[`VITE_${name}`] as string;
+  // We must check each expected variable statically so Vite can replace the import.meta.env.* accesses at build-time.
+  if (name === "VITE_RAZORPAY_KEY_ID") {
+    return (
+      (import.meta as any).env.VITE_RAZORPAY_KEY_ID ||
+      (typeof process !== "undefined" && process.env ? process.env.VITE_RAZORPAY_KEY_ID : "") ||
+      (globalThis as any).VITE_RAZORPAY_KEY_ID ||
+      ""
+    );
   }
-
-  // 3. Try globalThis — Cloudflare Workers injects bindings at module scope
-  try {
-    const g = globalThis as any;
-    if (g[name] && typeof g[name] === "string") return g[name] as string;
-  } catch (e) {}
+  if (name === "RAZORPAY_KEY_SECRET" || name === "VITE_RAZORPAY_KEY_SECRET") {
+    return (
+      (import.meta as any).env.VITE_RAZORPAY_KEY_SECRET ||
+      (import.meta as any).env.RAZORPAY_KEY_SECRET ||
+      (typeof process !== "undefined" && process.env ? process.env.VITE_RAZORPAY_KEY_SECRET || process.env.RAZORPAY_KEY_SECRET : "") ||
+      (globalThis as any).VITE_RAZORPAY_KEY_SECRET ||
+      (globalThis as any).RAZORPAY_KEY_SECRET ||
+      ""
+    );
+  }
+  if (name === "VITE_SUPABASE_URL") {
+    return (
+      (import.meta as any).env.VITE_SUPABASE_URL ||
+      (typeof process !== "undefined" && process.env ? process.env.VITE_SUPABASE_URL : "") ||
+      (globalThis as any).VITE_SUPABASE_URL ||
+      ""
+    );
+  }
+  if (name === "VITE_SUPABASE_ANON_KEY") {
+    return (
+      (import.meta as any).env.VITE_SUPABASE_ANON_KEY ||
+      (typeof process !== "undefined" && process.env ? process.env.VITE_SUPABASE_ANON_KEY : "") ||
+      (globalThis as any).VITE_SUPABASE_ANON_KEY ||
+      ""
+    );
+  }
 
   return "";
 }
