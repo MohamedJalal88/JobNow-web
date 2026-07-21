@@ -44,5 +44,7 @@ jobs:
         run: |
           echo "${{ secrets.VITE_SUPABASE_URL }}" | npx wrangler secret put VITE_SUPABASE_URL
           echo "${{ secrets.VITE_SUPABASE_ANON_KEY }}" | npx wrangler secret put VITE_SUPABASE_ANON_KEY
-          echo "${{ secrets.VITE_RAZORPAY_KEY_ID }}" | npx wrangler secret put VITE_RAZORPAY_KEY_ID
-          echo "${{ secrets.RAZORPAY_KEY_SECRET }}" | npx wrangler secret put RAZORPAY_KEY_SECRET
+          echo "${{ secrets.VITE_RAZORPAY_KEY_ID || secrets.RAZORPAY_KEY_ID }}" | npx wrangler secret put VITE_RAZORPAY_KEY_ID
+          echo "${{ secrets.VITE_RAZORPAY_KEY_ID || secrets.RAZORPAY_KEY_ID }}" | npx wrangler secret put RAZORPAY_KEY_ID
+          echo "${{ secrets.RAZORPAY_KEY_SECRET || secrets.VITE_RAZORPAY_KEY_SECRET }}" | npx wrangler secret put RAZORPAY_KEY_SECRET
+          echo "${{ secrets.RAZORPAY_KEY_SECRET || secrets.VITE_RAZORPAY_KEY_SECRET }}" | npx wrangler secret put VITE_RAZORPAY_KEY_SECRET
