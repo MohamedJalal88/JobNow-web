@@ -333,15 +333,3 @@ function Info({ icon: Icon, label, value }: { icon: React.ElementType; label: st
     </div>
   );
 }
-
-function Info({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
-  return (
-    <div className="rounded-2xl bg-card border border-border p-4 shadow-soft hover:shadow-elegant transition-all">
-      <div className="flex items-center gap-2 text-muted-foreground">
-        <Icon className="h-3.5 w-3.5" />
-        <p className="text-xs">{label}</p>
-      </div>
-      <p className="mt-1 font-bold text-lg">{value}</p>
-    </div>
-  );
-}
