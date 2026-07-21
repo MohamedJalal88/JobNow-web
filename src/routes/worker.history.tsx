@@ -34,11 +34,18 @@ function History() {
 
         if (error) throw error;
 
+        const completedLocalIds: string[] = JSON.parse(localStorage.getItem(`completed_jobs_${user.id}`) || "[]");
+
         const formatted = (data || []).map((app: any) => {
           const payPerDay = Number(app.job?.pay_per_day) || 0;
           const duration = Number(app.job?.duration_days) || 1;
           const amt = payPerDay * duration;
-          const isCompleted = app.status === "completed" || app.job?.status === "completed" || app.job?.attendance_status === "clocked_out";
+          const isCompleted =
+            completedLocalIds.includes(app.job_id) ||
+            localStorage.getItem(`job_clocked_out_${app.job_id}`) === "true" ||
+            app.status === "completed" ||
+            app.job?.status === "completed" ||
+            app.job?.attendance_status === "clocked_out";
 
           return {
             id: app.id,

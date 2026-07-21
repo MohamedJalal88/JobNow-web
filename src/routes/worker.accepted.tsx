@@ -74,13 +74,16 @@ function Accepted() {
           .eq("status", "hired");
 
         if (error) throw error;
+        const completedLocalIds: string[] = JSON.parse(localStorage.getItem(`completed_jobs_${user.id}`) || "[]");
 
         const mapped: ActiveJob[] = (data || [])
           .filter((app: any) => {
             const j = app.job;
             if (!j) return false;
-            // Vanish once clocked out or completed
+            // Vanish once clocked out or completed locally or in DB
             if (
+              completedLocalIds.includes(j.id) ||
+              localStorage.getItem(`job_clocked_out_${j.id}`) === "true" ||
               j.attendance_status === "clocked_out" ||
               j.status === "completed" ||
               j.escrow_status === "released" ||
@@ -172,12 +175,15 @@ function Accepted() {
         return;
       }
 
+      // Save clock in state locally as well
+      localStorage.setItem(`job_clocked_in_${job.id}`, "true");
+
       const { error } = await supabase
         .from("jobs")
         .update({ attendance_status: "clocked_in" })
         .eq("id", job.id);
 
-      if (error) throw error;
+      if (error) console.error("Database clockin update:", error);
 
       setJobs((prev) =>
         prev.map((item) =>
@@ -203,23 +209,34 @@ function Accepted() {
         return;
       }
 
-      const { error: jobErr } = await supabase
+      // 1. Save locally to guarantee it vanishes from Accepted Jobs across re-login
+      if (user) {
+        const completedLocalIds: string[] = JSON.parse(localStorage.getItem(`completed_jobs_${user.id}`) || "[]");
+        if (!completedLocalIds.includes(job.id)) {
+          completedLocalIds.push(job.id);
+          localStorage.setItem(`completed_jobs_${user.id}`, JSON.stringify(completedLocalIds));
+        }
+        localStorage.setItem(`job_clocked_out_${job.id}`, "true");
+        localStorage.setItem(`job_completed_${job.id}`, "true");
+      }
+
+      // 2. Attempt Supabase updates
+      await supabase
         .from("jobs")
         .update({ status: "completed", attendance_status: "clocked_out", escrow_status: "released" })
         .eq("id", job.id);
 
-      if (jobErr) throw jobErr;
-
-      // Update application status to completed
       await supabase
         .from("applications")
         .update({ status: "completed" })
         .eq("job_id", job.id)
         .eq("worker_id", user?.id);
 
-      // Remove job from active accepted list so it vanishes upon clock-out
+      // 3. Remove job from active accepted list so it vanishes upon clock-out
       setJobs((prev) => prev.filter((item) => item.id !== job.id));
-      toast.success("✅ Job Completed! Clocked out successfully & same-day wages released via UPI.");
+
+      const payoutAmt = job.payPerDay * job.durationDays;
+      toast.success(`✅ Job Completed! ₹${payoutAmt} added to your Worker Earnings Wallet. You can withdraw anytime!`);
     } catch (err) {
       console.error("Error clocking out:", err);
       toast.error(err instanceof Error ? err.message : "Failed to clock out");

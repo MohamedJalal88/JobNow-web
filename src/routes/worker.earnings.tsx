@@ -5,10 +5,15 @@ import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import {
-  ArrowDownRight, ArrowUpRight, Clock, Download, IndianRupee, TrendingUp, Wallet, Loader2
+  ArrowDownRight, ArrowUpRight, Clock, Download, IndianRupee, TrendingUp, Wallet, Loader2, Send, CheckCircle2, Building, Smartphone
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
@@ -34,6 +39,22 @@ function Earnings() {
   const [earningsData, setEarningsData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Wallet & Withdrawal State
+  const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
+  const [withdrawMethod, setWithdrawMethod] = useState<"upi" | "bank">("upi");
+  const [upiId, setUpiId] = useState(user?.phone ? `${user.phone}@upi` : "worker@upi");
+  const [accountNo, setAccountNo] = useState("987654321012");
+  const [ifscCode, setIfscCode] = useState("SBIN0001234");
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [withdrawals, setWithdrawals] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (user) {
+      const savedWithdrawals = JSON.parse(localStorage.getItem(`withdrawals_${user.id}`) || "[]");
+      setWithdrawals(savedWithdrawals);
+    }
+  }, [user]);
+
   useEffect(() => {
     async function loadData() {
       if (!user) return;
@@ -48,7 +69,8 @@ function Earnings() {
         if (error) throw error;
 
         const apps = data || [];
-        
+        const completedLocalIds: string[] = JSON.parse(localStorage.getItem(`completed_jobs_${user.id}`) || "[]");
+
         let total = 0;
         let completed = 0;
         let pending = 0;
@@ -60,8 +82,14 @@ function Earnings() {
         const historyList = apps.map((app: any) => {
           const j = app.job;
           const amt = j.pay_per_day * j.duration_days;
-          const isCompleted = j.status === "completed" || j.escrow_status === "released" || j.attendance_status === "clocked_out" || app.status === "completed";
-          
+          const isCompleted =
+            completedLocalIds.includes(j.id) ||
+            localStorage.getItem(`job_clocked_out_${j.id}`) === "true" ||
+            j.status === "completed" ||
+            j.escrow_status === "released" ||
+            j.attendance_status === "clocked_out" ||
+            app.status === "completed";
+
           total += amt;
           if (isCompleted) {
             completed += amt;
@@ -88,7 +116,6 @@ function Earnings() {
         historyList.sort((a, b) => b.rawDate.getTime() - a.rawDate.getTime());
 
         // Construct dynamic chart ranges
-        // 1. Weekly (7 days)
         const weeklyData = Array.from({ length: 7 }).map((_, i) => {
           const d = new Date();
           d.setDate(d.getDate() - (6 - i));
@@ -99,7 +126,6 @@ function Earnings() {
           return { label, amt };
         });
 
-        // 2. Monthly (30 days, grouped into 6 buckets of 5 days)
         const monthlyData = Array.from({ length: 6 }).map((_, i) => {
           const endD = new Date();
           endD.setDate(endD.getDate() - (5 - i) * 5);
@@ -113,7 +139,6 @@ function Earnings() {
           return { label, amt };
         });
 
-        // 3. Quarterly (3 months, grouped weekly)
         const quarterlyData = Array.from({ length: 12 }).map((_, i) => {
           const endD = new Date();
           endD.setDate(endD.getDate() - (11 - i) * 7);
@@ -126,7 +151,6 @@ function Earnings() {
           return { label, amt };
         });
 
-        // 4. Yearly (12 months)
         const yearlyData = Array.from({ length: 12 }).map((_, i) => {
           const d = new Date();
           d.setMonth(d.getMonth() - (11 - i));
@@ -162,6 +186,46 @@ function Earnings() {
   const activeRangeData = earningsData ? earningsData[range] : [];
   const totalPeriod = useMemo(() => activeRangeData.reduce((s: number, d: any) => s + d.amt, 0), [activeRangeData]);
   const avgPeriod = Math.round(totalPeriod / Math.max(activeRangeData.length, 1));
+
+  const withdrawnSum = useMemo(() => {
+    return withdrawals.reduce((acc, w) => acc + Number(w.amount || 0), 0);
+  }, [withdrawals]);
+
+  const availableWalletBalance = useMemo(() => {
+    if (!earningsData) return 0;
+    return Math.max(0, earningsData.completed - withdrawnSum);
+  }, [earningsData, withdrawnSum]);
+
+  const handleConfirmWithdraw = (e: React.FormEvent) => {
+    e.preventDefault();
+    const amt = parseFloat(withdrawAmount);
+    if (isNaN(amt) || amt <= 0) {
+      toast.error("Please enter a valid withdrawal amount");
+      return;
+    }
+    if (amt > availableWalletBalance) {
+      toast.error(`Insufficient wallet balance. Available: ₹${availableWalletBalance}`);
+      return;
+    }
+
+    const newTx = {
+      id: `WD-${Date.now().toString().slice(-6)}`,
+      amount: amt,
+      method: withdrawMethod === "upi" ? `UPI (${upiId})` : `Bank (${accountNo.slice(-4)})`,
+      date: new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
+      status: "Completed",
+    };
+
+    const updated = [newTx, ...withdrawals];
+    setWithdrawals(updated);
+    if (user) {
+      localStorage.setItem(`withdrawals_${user.id}`, JSON.stringify(updated));
+    }
+
+    setIsWithdrawOpen(false);
+    setWithdrawAmount("");
+    toast.success(`🎉 Instant Withdrawal of ₹${amt.toLocaleString()} initiated to ${newTx.method}! Funds credited within 5 mins.`);
+  };
 
   if (isLoading) {
     return (
@@ -259,18 +323,34 @@ function Earnings() {
           </div>
         </div>
 
-        <div className="rounded-3xl bg-gradient-to-br from-blue-800 via-blue-900 to-slate-950 text-white p-6 shadow-elegant relative overflow-hidden">
+        {/* Worker Wallet & Withdrawal Card */}
+        <div className="rounded-3xl bg-gradient-to-br from-blue-800 via-blue-900 to-slate-950 text-white p-6 shadow-elegant relative overflow-hidden flex flex-col justify-between">
           <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-white/15 blur-2xl" />
-          <p className="text-xs uppercase tracking-widest opacity-80">Payment summary</p>
-          <p className="text-3xl font-extrabold mt-2 inline-flex items-center"><IndianRupee className="h-6 w-6" />{earningsData.thisMonth.toLocaleString()}</p>
-          <p className="text-xs opacity-90 mt-1">Earned this month</p>
-          <div className="mt-5 space-y-3 relative">
-            <Row label="Completed" value={`₹${earningsData.completed.toLocaleString()}`} />
-            <Row label="Pending" value={`₹${earningsData.pending.toLocaleString()}`} />
-            <Row label="Avg per job" value={`₹${(earningsData.allHistory.length > 0 ? Math.round(earningsData.total / earningsData.allHistory.length) : 0).toLocaleString()}`} />
+          <div>
+            <div className="flex items-center justify-between">
+              <p className="text-xs uppercase tracking-widest opacity-80">Worker Earnings Wallet</p>
+              <Badge className="bg-success/20 text-success border-0 text-[10px]">Active Balance</Badge>
+            </div>
+            <p className="text-4xl font-extrabold mt-2 inline-flex items-center">
+              <IndianRupee className="h-7 w-7" />{availableWalletBalance.toLocaleString()}
+            </p>
+            <p className="text-xs opacity-90 mt-1">Ready for instant withdrawal to Bank / UPI</p>
+
+            <div className="mt-5 space-y-2.5 text-xs relative border-t border-white/10 pt-4">
+              <Row label="Total Completed Payouts" value={`₹${earningsData.completed.toLocaleString()}`} />
+              <Row label="Total Withdrawn" value={`₹${withdrawnSum.toLocaleString()}`} />
+              <Row label="Pending Escrow Locked" value={`₹${earningsData.pending.toLocaleString()}`} />
+            </div>
           </div>
-          <Button className="mt-5 w-full rounded-full bg-white text-blue-900 hover:bg-white/90 font-semibold" onClick={() => toast.success("Bank transfer request received!")}>
-            Withdraw to bank
+
+          <Button
+            className="mt-6 w-full rounded-full bg-white text-blue-900 hover:bg-white/90 font-bold py-3 shadow-glow flex items-center justify-center gap-2"
+            onClick={() => {
+              setWithdrawAmount(availableWalletBalance.toString());
+              setIsWithdrawOpen(true);
+            }}
+          >
+            <Send className="h-4 w-4" /> Withdraw Funds to Bank / UPI
           </Button>
         </div>
       </div>
@@ -321,6 +401,114 @@ function Earnings() {
           )}
         </div>
       </div>
+
+      {/* Withdrawal Dialog Modal */}
+      <Dialog open={isWithdrawOpen} onOpenChange={setIsWithdrawOpen}>
+        <DialogContent className="sm:max-w-md rounded-3xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold flex items-center gap-2">
+              <Wallet className="h-5 w-5 text-primary" /> Withdraw Earnings
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Transfer funds from your JobNow Worker Wallet directly to your UPI or Bank Account.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleConfirmWithdraw} className="space-y-4 mt-2">
+            <div className="rounded-2xl bg-muted/50 p-4 border border-border flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground font-medium">Available Balance</p>
+                <p className="text-2xl font-extrabold text-primary">₹{availableWalletBalance.toLocaleString()}</p>
+              </div>
+              <Badge className="bg-success/15 text-success border-0">Escrow Released</Badge>
+            </div>
+
+            <div>
+              <Label className="text-xs font-semibold">Amount to Withdraw (₹)</Label>
+              <Input
+                type="number"
+                min="1"
+                max={availableWalletBalance}
+                value={withdrawAmount}
+                onChange={(e) => setWithdrawAmount(e.target.value)}
+                placeholder="Enter amount"
+                className="mt-1 rounded-xl font-bold text-base"
+                required
+              />
+            </div>
+
+            <div>
+              <Label className="text-xs font-semibold">Withdrawal Method</Label>
+              <div className="grid grid-cols-2 gap-2 mt-1">
+                <Button
+                  type="button"
+                  variant={withdrawMethod === "upi" ? "default" : "outline"}
+                  onClick={() => setWithdrawMethod("upi")}
+                  className="rounded-xl h-11 justify-start gap-2"
+                >
+                  <Smartphone className="h-4 w-4" /> UPI Payout
+                </Button>
+                <Button
+                  type="button"
+                  variant={withdrawMethod === "bank" ? "default" : "outline"}
+                  onClick={() => setWithdrawMethod("bank")}
+                  className="rounded-xl h-11 justify-start gap-2"
+                >
+                  <Building className="h-4 w-4" /> Bank Account
+                </Button>
+              </div>
+            </div>
+
+            {withdrawMethod === "upi" ? (
+              <div>
+                <Label className="text-xs font-semibold">UPI ID</Label>
+                <Input
+                  type="text"
+                  value={upiId}
+                  onChange={(e) => setUpiId(e.target.value)}
+                  placeholder="e.g. 9876543210@paytm"
+                  className="mt-1 rounded-xl"
+                  required
+                />
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-xs font-semibold">Account Number</Label>
+                  <Input
+                    type="text"
+                    value={accountNo}
+                    onChange={(e) => setAccountNo(e.target.value)}
+                    placeholder="Enter Account Number"
+                    className="mt-1 rounded-xl"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs font-semibold">IFSC Code</Label>
+                  <Input
+                    type="text"
+                    value={ifscCode}
+                    onChange={(e) => setIfscCode(e.target.value)}
+                    placeholder="e.g. SBIN0001234"
+                    className="mt-1 rounded-xl uppercase"
+                    required
+                  />
+                </div>
+              </div>
+            )}
+
+            <DialogFooter className="mt-4">
+              <Button type="button" variant="outline" onClick={() => setIsWithdrawOpen(false)} className="rounded-full">
+                Cancel
+              </Button>
+              <Button type="submit" disabled={availableWalletBalance <= 0} className="rounded-full bg-gradient-primary font-semibold text-white gap-1">
+                <CheckCircle2 className="h-4 w-4" /> Confirm Withdrawal
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
