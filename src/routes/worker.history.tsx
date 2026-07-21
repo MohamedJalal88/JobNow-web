@@ -121,7 +121,7 @@ function History() {
                   <span className="font-bold text-base inline-flex items-center"><IndianRupee className="h-3.5 w-3.5" />{h.amount.toLocaleString()}</span>
                 </div>
                 <div className="mt-3 flex gap-2">
-                  <Link to="/worker/jobs/$jobId" params={{ jobId: h.jobId }} className="flex-1 h-9 rounded-full bg-muted text-xs font-medium grid place-items-center hover:bg-muted/70">{t("View details")}</Link>
+                  <Link to="/worker/jobs/$jobId" params={{ jobId: h.jobId }} search={{ from: "history" }} className="flex-1 h-9 rounded-full bg-muted text-xs font-medium grid place-items-center hover:bg-muted/70">{t("View details")}</Link>
                   <button className="h-9 px-4 rounded-full bg-gradient-primary text-primary-foreground text-xs font-semibold shadow-soft inline-flex items-center gap-1">
                     <Download className="h-3.5 w-3.5" /> {t("Invoice")}
                   </button>
