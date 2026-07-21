@@ -138,7 +138,7 @@ function ManageJob() {
               </Badge>
             </div>
             <p className="text-sm text-muted-foreground mt-1 inline-flex items-center gap-1.5 flex-wrap">
-              ID: {job.id.toUpperCase()} <Copy className="h-3 w-3 cursor-pointer hover:text-foreground" onClick={copyIdToClipboard} /> · Posted {Math.max(1, Math.floor((Date.now() - new Date(job.created_at).getTime()) / 60000))} mins ago · Geofence: {job.geofence_radius_meters || 100}m
+              ID: {job.id.toUpperCase()} <Copy className="h-3 w-3 cursor-pointer hover:text-foreground" onClick={copyIdToClipboard} /> · Posted {Math.max(1, Math.floor((Date.now() - new Date(job.created_at).getTime()) / 60000))} mins ago · Geofence: {job.geofence_radius_meters ? (job.geofence_radius_meters >= 1000 ? `${(job.geofence_radius_meters / 1000).toFixed(0)}km` : `${job.geofence_radius_meters}m`) : "1km"}
             </p>
           </div>
         </div>
@@ -232,7 +232,7 @@ function ManageJob() {
                 <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Escrow & Compliance Mandates</p>
                 <ul className="text-sm space-y-1.5">
                   <li className="inline-flex items-center gap-1.5 text-xs font-medium"><CheckCircle2 className="h-4 w-4 text-success shrink-0" /> Digital Escrow Funded (100% Wage Guarantee)</li>
-                  <li className="inline-flex items-center gap-1.5 text-xs font-medium"><CheckCircle2 className="h-4 w-4 text-success shrink-0" /> Geofence Attendance Matching ({job.geofence_radius_meters || 100}m Radius)</li>
+                  <li className="inline-flex items-center gap-1.5 text-xs font-medium"><CheckCircle2 className="h-4 w-4 text-success shrink-0" /> Geofence Attendance Matching ({job.geofence_radius_meters ? (job.geofence_radius_meters >= 1000 ? `${(job.geofence_radius_meters / 1000).toFixed(0)}km` : `${job.geofence_radius_meters}m`) : "1km"} Radius)</li>
                   <li className="inline-flex items-center gap-1.5 text-xs font-medium"><CheckCircle2 className="h-4 w-4 text-success shrink-0" /> Aadhaar Physical Verification Required</li>
                 </ul>
               </div>

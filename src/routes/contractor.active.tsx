@@ -130,7 +130,7 @@ function ActiveJobs() {
                         </Badge>
                       </div>
                       <p className="font-bold text-base truncate text-foreground">{j.title}</p>
-                      <p className="text-xs text-muted-foreground truncate">{j.location} · 📍 Geofence: {j.geofence_radius_meters || 100}m</p>
+                      <p className="text-xs text-muted-foreground truncate">{j.location} · 📍 Geofence: {j.geofence_radius_meters ? (j.geofence_radius_meters >= 1000 ? `${(j.geofence_radius_meters / 1000).toFixed(0)}km` : `${j.geofence_radius_meters}m`) : "1km"}</p>
                     </div>
                   </div>
 

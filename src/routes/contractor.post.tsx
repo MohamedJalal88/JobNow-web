@@ -172,6 +172,7 @@ function PostJob() {
         status: "open",
         escrow_status: "locked", // Escrow locked by simulated Razorpay
         attendance_status: "pending_clockin",
+        geofence_radius_meters: 1000,
       });
 
       if (error) throw error;

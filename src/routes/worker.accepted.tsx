@@ -94,7 +94,7 @@ function Accepted() {
             startDate: "Tomorrow, 8:00 AM",
             latitude: j.latitude ? parseFloat(j.latitude.toString()) : null,
             longitude: j.longitude ? parseFloat(j.longitude.toString()) : null,
-            geofenceRadiusMeters: j.geofence_radius_meters || 100,
+            geofenceRadiusMeters: j.geofence_radius_meters || 1000,
           };
         });
 
@@ -260,7 +260,7 @@ function Accepted() {
                       </div>
                       <p className="mt-2 font-bold text-lg truncate">{j.title}</p>
                       <p className="text-xs text-muted-foreground inline-flex items-center gap-1.5">
-                        <MapPin className="h-3 w-3" /> {j.location} · {j.distanceKm.toFixed(1)} km (Geofence: {j.geofenceRadiusMeters}m)
+                        <MapPin className="h-3 w-3" /> {j.location} · {j.distanceKm.toFixed(1)} km (Geofence: {j.geofenceRadiusMeters >= 1000 ? `${(j.geofenceRadiusMeters / 1000).toFixed(0)}km` : `${j.geofenceRadiusMeters}m`})
                       </p>
                       <div className="mt-3 grid sm:grid-cols-3 gap-2">
                         <Stat icon={IndianRupee} label="Per day" value={`₹${j.payPerDay}`} />
@@ -299,7 +299,7 @@ function Accepted() {
                       <div>
                         <p className="text-xs font-bold text-foreground">Geofenced QR Attendance Status</p>
                         <p className="text-[11px] text-muted-foreground">
-                          {isClockedIn ? "🟢 Clocked in (GPS Verified within 100m)" : j.attendance_status === "clocked_out" ? "✅ Clocked out successfully" : `🔴 Not clocked in yet (Must be within ${j.geofenceRadiusMeters}m)`}
+                          {isClockedIn ? "🟢 Clocked in (GPS Verified within 1km)" : j.attendance_status === "clocked_out" ? "✅ Clocked out successfully" : `🔴 Not clocked in yet (Must be within ${j.geofenceRadiusMeters >= 1000 ? `${(j.geofenceRadiusMeters / 1000).toFixed(0)}km` : `${j.geofenceRadiusMeters}m`})`}
                         </p>
                       </div>
                     </div>
