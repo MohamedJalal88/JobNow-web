@@ -100,3 +100,10 @@ ${tableRows}
   fs.appendFileSync(summaryPath, markdown, 'utf8');
   console.log("Appended Security Audit to GitHub Step Summary.");
 }
+
+// Also run the 405-testcase screen vulnerability report generator
+try {
+  require('./generate-security-testcases-excel.cjs');
+} catch (e) {
+  console.error("Error executing generate-security-testcases-excel:", e);
+}
