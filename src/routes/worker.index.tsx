@@ -185,7 +185,7 @@ function WorkerHome() {
         if (appsErr) throw appsErr;
 
         const formattedActive = (dbApps || [])
-          .filter((app) => app.status === "hired" || app.status === "applied")
+          .filter((app) => (app.status === "hired" || app.status === "applied") && app.job?.status !== "completed" && app.job?.attendance_status !== "clocked_out")
           .map((app) => ({
             id: app.job.id,
             title: app.job.title,
@@ -197,10 +197,10 @@ function WorkerHome() {
         setActiveJobs(formattedActive);
 
         // Compute stats
-        const completedJobs = (dbApps || []).filter((app) => app.status === "completed" || app.job?.status === "completed");
+        const completedJobs = (dbApps || []).filter((app) => app.status === "completed" || app.job?.status === "completed" || app.job?.attendance_status === "clocked_out" || app.job?.escrow_status === "released");
         const totalCompletedEarnings = completedJobs.reduce((acc, app) => acc + (app.job.pay_per_day * app.job.duration_days), 0);
         
-        const hiredJobs = (dbApps || []).filter((app) => app.status === "hired");
+        const hiredJobs = (dbApps || []).filter((app) => app.status === "hired" && app.job?.status !== "completed" && app.job?.attendance_status !== "clocked_out");
         const totalPendingEarnings = hiredJobs.reduce((acc, app) => acc + (app.job.pay_per_day * app.job.duration_days), 0);
 
         setEarningsStats({

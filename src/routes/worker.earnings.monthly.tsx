@@ -24,7 +24,7 @@ function Monthly() {
           .from("applications")
           .select("*, job:jobs(*, contractor:profiles(*))")
           .eq("worker_id", user.id)
-          .eq("status", "hired");
+          .in("status", ["hired", "completed"]);
 
         if (error) throw error;
 
@@ -37,7 +37,7 @@ function Monthly() {
         const historyList = apps.map((app: any) => {
           const j = app.job;
           const amt = j.pay_per_day * j.duration_days;
-          const isCompleted = j.status === "completed" || j.escrow_status === "released";
+          const isCompleted = j.status === "completed" || j.escrow_status === "released" || j.attendance_status === "clocked_out" || app.status === "completed";
           
           total += amt;
 
