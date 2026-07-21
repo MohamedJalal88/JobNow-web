@@ -349,7 +349,7 @@ function PostJob() {
               className="h-60 w-full rounded-2xl border border-border shadow-soft overflow-hidden"
             />
             <p className="text-[10px] text-muted-foreground text-center">
-              Click the map or drag the pin to select the job site location.
+              Click <strong>"Track Live Location"</strong> on the map, click anywhere, or drag the pin to set the job site coordinates.
             </p>
           </div>
         </div>

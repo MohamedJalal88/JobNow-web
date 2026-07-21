@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { Navigation, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 let leafletPromise: Promise<any> | null = null;
 
@@ -68,6 +70,34 @@ export function MapPicker({ lat, lng, onChange, className = "h-64 w-full rounded
   const mapRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
   const [loaded, setLoaded] = useState(false);
+  const [isTracking, setIsTracking] = useState(false);
+
+  const handleTrackLiveLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error("Geolocation is not supported by your browser");
+      return;
+    }
+    setIsTracking(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const liveLat = pos.coords.latitude;
+        const liveLng = pos.coords.longitude;
+        if (mapRef.current && markerRef.current) {
+          markerRef.current.setLatLng([liveLat, liveLng]);
+          mapRef.current.setView([liveLat, liveLng], 15);
+        }
+        onChange(liveLat, liveLng);
+        setIsTracking(false);
+        toast.success("🎯 Live GPS Location Tracked!");
+      },
+      (err) => {
+        console.error("Location tracking failed:", err);
+        setIsTracking(false);
+        toast.error("Unable to fetch live GPS location. Please allow location access.");
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  };
 
   useEffect(() => {
     loadLeaflet().then((L) => {
@@ -130,8 +160,24 @@ export function MapPicker({ lat, lng, onChange, className = "h-64 w-full rounded
   }, [lat, lng]);
 
   return (
-    <div className={cn("relative", className)}>
+    <div className={cn("relative overflow-hidden rounded-2xl border border-border shadow-soft", className)}>
       <div ref={containerRef} className="h-full w-full" />
+      
+      {/* Live Location Button Overlay */}
+      <button
+        type="button"
+        onClick={handleTrackLiveLocation}
+        disabled={isTracking || !loaded}
+        className="absolute top-3 right-3 z-[400] bg-background/90 hover:bg-background backdrop-blur-md text-foreground px-3 py-1.5 rounded-full text-xs font-bold shadow-md border border-border flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95 disabled:opacity-60"
+      >
+        {isTracking ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+        ) : (
+          <Navigation className="h-3.5 w-3.5 text-primary fill-primary/20" />
+        )}
+        <span>{isTracking ? "Locating…" : "Track Live Location"}</span>
+      </button>
+
       {!loaded && (
         <div className="absolute inset-0 bg-muted/40 rounded-2xl flex items-center justify-center text-sm text-muted-foreground">
           Loading OpenStreetMap…
@@ -151,7 +197,48 @@ interface MapDisplayProps {
 export function MapDisplay({ lat, lng, title = "Location", className = "h-64 w-full rounded-2xl" }: MapDisplayProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
+  const liveMarkerRef = useRef<any>(null);
   const [loaded, setLoaded] = useState(false);
+  const [isTracking, setIsTracking] = useState(false);
+
+  const handleTrackLiveLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error("Geolocation is not supported by your browser");
+      return;
+    }
+    setIsTracking(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const L = (window as any).L;
+        const liveLat = pos.coords.latitude;
+        const liveLng = pos.coords.longitude;
+
+        if (mapRef.current && L) {
+          if (!liveMarkerRef.current) {
+            const circle = L.circleMarker([liveLat, liveLng], {
+              radius: 9,
+              color: "#2563eb",
+              fillColor: "#3b82f6",
+              fillOpacity: 0.85,
+              weight: 3,
+            }).addTo(mapRef.current).bindPopup("Your Live Position").openPopup();
+            liveMarkerRef.current = circle;
+          } else {
+            liveMarkerRef.current.setLatLng([liveLat, liveLng]);
+          }
+          mapRef.current.setView([liveLat, liveLng], 15);
+        }
+        setIsTracking(false);
+        toast.success("🎯 Live GPS Location Tracked!");
+      },
+      (err) => {
+        console.error("Live tracking failed:", err);
+        setIsTracking(false);
+        toast.error("Unable to fetch live location");
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  };
 
   useEffect(() => {
     loadLeaflet().then((L) => {
@@ -180,13 +267,30 @@ export function MapDisplay({ lat, lng, title = "Location", className = "h-64 w-f
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
+        liveMarkerRef.current = null;
       }
     };
   }, [lat, lng]);
 
   return (
-    <div className={cn("relative", className)}>
+    <div className={cn("relative overflow-hidden rounded-2xl border border-border shadow-soft", className)}>
       <div ref={containerRef} className="h-full w-full" />
+      
+      {/* Live Location Button Overlay */}
+      <button
+        type="button"
+        onClick={handleTrackLiveLocation}
+        disabled={isTracking || !loaded}
+        className="absolute top-3 right-3 z-[400] bg-background/90 hover:bg-background backdrop-blur-md text-foreground px-3 py-1.5 rounded-full text-xs font-bold shadow-md border border-border flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95 disabled:opacity-60"
+      >
+        {isTracking ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+        ) : (
+          <Navigation className="h-3.5 w-3.5 text-primary fill-primary/20" />
+        )}
+        <span>{isTracking ? "Locating…" : "Track Live Location"}</span>
+      </button>
+
       {!loaded && (
         <div className="absolute inset-0 bg-muted/40 rounded-2xl flex items-center justify-center text-sm text-muted-foreground">
           Loading OpenStreetMap…
@@ -303,9 +407,67 @@ export function MapNearby({
     });
   }, [items]);
 
+  const liveMarkerRef = useRef<any>(null);
+  const [isTracking, setIsTracking] = useState(false);
+
+  const handleTrackLiveLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error("Geolocation is not supported by your browser");
+      return;
+    }
+    setIsTracking(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const L = (window as any).L;
+        const liveLat = pos.coords.latitude;
+        const liveLng = pos.coords.longitude;
+
+        if (mapRef.current && L) {
+          if (!liveMarkerRef.current) {
+            const circle = L.circleMarker([liveLat, liveLng], {
+              radius: 9,
+              color: "#2563eb",
+              fillColor: "#3b82f6",
+              fillOpacity: 0.85,
+              weight: 3,
+            }).addTo(mapRef.current).bindPopup("Your Live Position").openPopup();
+            liveMarkerRef.current = circle;
+          } else {
+            liveMarkerRef.current.setLatLng([liveLat, liveLng]);
+          }
+          mapRef.current.setView([liveLat, liveLng], 14);
+        }
+        setIsTracking(false);
+        toast.success("🎯 Live GPS Location Tracked!");
+      },
+      (err) => {
+        console.error("Live tracking failed:", err);
+        setIsTracking(false);
+        toast.error("Unable to fetch live location");
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  };
+
   return (
-    <div className={cn("relative", className)}>
+    <div className={cn("relative overflow-hidden rounded-2xl border border-border shadow-soft", className)}>
       <div ref={containerRef} className="h-full w-full" />
+
+      {/* Live Location Button Overlay */}
+      <button
+        type="button"
+        onClick={handleTrackLiveLocation}
+        disabled={isTracking || !loaded}
+        className="absolute top-3 right-3 z-[400] bg-background/90 hover:bg-background backdrop-blur-md text-foreground px-3 py-1.5 rounded-full text-xs font-bold shadow-md border border-border flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95 disabled:opacity-60"
+      >
+        {isTracking ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+        ) : (
+          <Navigation className="h-3.5 w-3.5 text-primary fill-primary/20" />
+        )}
+        <span>{isTracking ? "Locating…" : "Track Live Location"}</span>
+      </button>
+
       {!loaded && (
         <div className="absolute inset-0 bg-muted/40 rounded-2xl flex items-center justify-center text-sm text-muted-foreground">
           Loading OpenStreetMap…
