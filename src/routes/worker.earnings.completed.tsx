@@ -27,7 +27,7 @@ function Completed() {
           .from("applications")
           .select("*, job:jobs(*, contractor:profiles(*))")
           .eq("worker_id", user.id)
-          .eq("status", "hired");
+          .in("status", ["hired", "completed"]);
 
         if (error) throw error;
 
@@ -37,7 +37,7 @@ function Completed() {
         const rows = apps
           .filter((app: any) => {
             const j = app.job;
-            return j && (j.status === "completed" || j.escrow_status === "released");
+            return j && (j.status === "completed" || j.escrow_status === "released" || j.attendance_status === "clocked_out" || app.status === "completed");
           })
           .map((app: any, i: number) => {
             const j = app.job;

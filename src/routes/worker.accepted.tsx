@@ -75,28 +75,43 @@ function Accepted() {
 
         if (error) throw error;
 
-        const mapped: ActiveJob[] = (data || []).map((app: any) => {
-          const j = app.job;
-          const c = j.contractor || {};
-          return {
-            id: j.id,
-            title: j.title,
-            contractorName: c.name || "Contractor",
-            contractorId: c.id || "",
-            contractorAvatar: c.avatar || (c.name || "C").split(" ").map((n: string) => n[0]).slice(0, 2).join("").toUpperCase(),
-            skill: j.skill || "",
-            distanceKm: j.distance_km ? parseFloat(j.distance_km.toString()) : 1.0,
-            payPerDay: j.pay_per_day ? parseFloat(j.pay_per_day.toString()) : 0,
-            durationDays: j.duration_days ?? 1,
-            location: j.location || "Noida",
-            attendance_status: j.attendance_status || "pending_clockin",
-            escrow_status: j.escrow_status || "pending",
-            startDate: "Tomorrow, 8:00 AM",
-            latitude: j.latitude ? parseFloat(j.latitude.toString()) : null,
-            longitude: j.longitude ? parseFloat(j.longitude.toString()) : null,
-            geofenceRadiusMeters: j.geofence_radius_meters || 1000,
-          };
-        });
+        const mapped: ActiveJob[] = (data || [])
+          .filter((app: any) => {
+            const j = app.job;
+            if (!j) return false;
+            // Vanish once clocked out or completed
+            if (
+              j.attendance_status === "clocked_out" ||
+              j.status === "completed" ||
+              j.escrow_status === "released" ||
+              app.status === "completed"
+            ) {
+              return false;
+            }
+            return true;
+          })
+          .map((app: any) => {
+            const j = app.job;
+            const c = j.contractor || {};
+            return {
+              id: j.id,
+              title: j.title,
+              contractorName: c.name || "Contractor",
+              contractorId: c.id || "",
+              contractorAvatar: c.avatar || (c.name || "C").split(" ").map((n: string) => n[0]).slice(0, 2).join("").toUpperCase(),
+              skill: j.skill || "",
+              distanceKm: j.distance_km ? parseFloat(j.distance_km.toString()) : 1.0,
+              payPerDay: j.pay_per_day ? parseFloat(j.pay_per_day.toString()) : 0,
+              durationDays: j.duration_days ?? 1,
+              location: j.location || "Noida",
+              attendance_status: j.attendance_status || "pending_clockin",
+              escrow_status: j.escrow_status || "pending",
+              startDate: "Tomorrow, 8:00 AM",
+              latitude: j.latitude ? parseFloat(j.latitude.toString()) : null,
+              longitude: j.longitude ? parseFloat(j.longitude.toString()) : null,
+              geofenceRadiusMeters: j.geofence_radius_meters || 1000,
+            };
+          });
 
         setJobs(mapped);
       } catch (err) {
@@ -188,21 +203,23 @@ function Accepted() {
         return;
       }
 
-      const { error } = await supabase
+      const { error: jobErr } = await supabase
         .from("jobs")
-        .update({ attendance_status: "clocked_out", escrow_status: "released" })
+        .update({ status: "completed", attendance_status: "clocked_out", escrow_status: "released" })
         .eq("id", job.id);
 
-      if (error) throw error;
+      if (jobErr) throw jobErr;
 
-      setJobs((prev) =>
-        prev.map((item) =>
-          item.id === job.id
-            ? { ...item, attendance_status: "clocked_out", escrow_status: "released" }
-            : item
-        )
-      );
-      toast.success("✅ Clocked out! GPS verified. Same-day wages released via UPI.");
+      // Update application status to completed
+      await supabase
+        .from("applications")
+        .update({ status: "completed" })
+        .eq("job_id", job.id)
+        .eq("worker_id", user?.id);
+
+      // Remove job from active accepted list so it vanishes upon clock-out
+      setJobs((prev) => prev.filter((item) => item.id !== job.id));
+      toast.success("✅ Job Completed! Clocked out successfully & same-day wages released via UPI.");
     } catch (err) {
       console.error("Error clocking out:", err);
       toast.error(err instanceof Error ? err.message : "Failed to clock out");

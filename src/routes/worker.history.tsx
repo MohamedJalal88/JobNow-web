@@ -30,7 +30,7 @@ function History() {
           .from("applications")
           .select("*, job:jobs(*, contractor:profiles(name))")
           .eq("worker_id", user.id)
-          .eq("status", "hired");
+          .in("status", ["hired", "completed"]);
 
         if (error) throw error;
 
@@ -38,7 +38,7 @@ function History() {
           const payPerDay = Number(app.job?.pay_per_day) || 0;
           const duration = Number(app.job?.duration_days) || 1;
           const amt = payPerDay * duration;
-          const isCompleted = app.job?.status === "completed";
+          const isCompleted = app.status === "completed" || app.job?.status === "completed" || app.job?.attendance_status === "clocked_out";
 
           return {
             id: app.id,
