@@ -237,13 +237,6 @@ function Landing() {
                   >
                     🤖 Download Android App (.apk)
                   </a>
-                  <a 
-                    href="https://github.com/MohamedJalal88/JobNow/releases/download/v1.0.0/jobnow-setup.exe" 
-                    download
-                    className="inline-flex items-center gap-2 text-xs font-semibold px-4 py-2.5 rounded-full border border-border hover:border-primary/40 bg-card hover:bg-muted shadow-soft transition-all shrink-0"
-                  >
-                    💻 Download Windows App (.exe)
-                  </a>
                 </div>
               </div>
             )}
